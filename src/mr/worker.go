@@ -1,10 +1,11 @@
 package mr
 
-import "fmt"
-import "log"
-import "net/rpc"
-import "hash/fnv"
-
+import (
+	"fmt"
+	"hash/fnv"
+	"log"
+	"net/rpc"
+)
 
 //
 // Map functions return a slice of KeyValue.
@@ -12,6 +13,10 @@ import "hash/fnv"
 type KeyValue struct {
 	Key   string
 	Value string
+}
+
+type worker struct {
+	id int
 }
 
 //
@@ -24,7 +29,6 @@ func ihash(key string) int {
 	return int(h.Sum32() & 0x7fffffff)
 }
 
-
 //
 // main/mrworker.go calls this function.
 //
@@ -32,9 +36,39 @@ func Worker(mapf func(string, string) []KeyValue,
 	reducef func(string, []string) string) {
 
 	// Your worker implementation here.
+	args := GetTaskArgs{}
+	reply := GetTaskReply{}
 
-	// uncomment to send the Example RPC to the master.
-	// CallExample()
+	call("Master.GetWorkerTask", &args, &reply)
+
+	for !reply.AllTasksDone {
+		if reply.TaskType == "Map" {
+			fmt.Println("Map running on task %v\n", reply.TaskId)
+
+			// execute map function
+			// runMap()
+
+			// in reply of map function check whether it was success or not, if not then change status to running and report master to run it again
+
+			// after success report back to master
+		} else if reply.TaskType == "Reduce" {
+			fmt.Println("Reduce running on task %v\n", reply.TaskId)
+
+			// execute reduce function
+			// runReduce()
+
+			// in reply check status of reduce, if failed then update master to run it again
+
+			// after success report back to master
+		} else {
+			fmt.Println("No task received from master..\n")
+		}
+
+		args = GetTaskArgs{}
+		reply = GetTaskReply{}
+
+		call("Master.GetWorkerTask", &args, &reply)
+	}
 
 }
 
