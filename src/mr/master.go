@@ -1,6 +1,7 @@
 package mr
 
 import (
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -19,17 +20,70 @@ type Master struct {
 
 type MapTask struct {
 	taskId   int
+	stage    int
 	fileName string
 }
 
 type ReduceTask struct {
-	taskId   int
-	fileName string
+	taskId       int
+	stage        int
+	bucketNumber int
 }
 
 // Your code here -- RPC handlers for the worker to call.
 
-func (m *Master) GetWorkerTask(args *GetTaskArgs, reply *GetTaskReply) {
+func (m *Master) GetWorkerTask(args *GetTaskArgs, reply *GetTaskReply) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	fmt.Println("New task request from worker")
+
+	// if all map jobs are not completed
+	for i, mt := range m.mapTasks {
+		if mt.stage == 0 {
+			// adding all values im reply for a task
+			reply.TaskId = mt.taskId
+			reply.FileName = mt.fileName
+			reply.TaskType = "Map"
+			reply.AllTasksDone = false
+			reply.NumberOfReducers = m.numberOfReduceTasks
+
+			// run that task
+			mt.stage = 1
+			m.mapTasks[i] = mt
+
+			fmt.Printf("Map task started running %+v\n", mt)
+			return nil
+		}
+	}
+
+	// if all reduce jobs are not completed
+	for i, mt := range m.reduceTasks {
+		if mt.stage == 0 {
+			reply.TaskId = mt.taskId
+			reply.TaskType = "Redcue"
+			reply.AllTasksDone = false
+			reply.NumberOfReducers = m.numberOfReduceTasks
+			reply.BucketNumber = i
+
+			mt.stage = 1
+			m.reduceTasks[i] = mt
+			fmt.Printf("Reduce task started running %+v\n", mt)
+
+			return nil
+		}
+	}
+
+	// if all tasks are done
+	reply.AllTasksDone = true
+	return nil
+}
+
+func checkAllMapTasks() {
+
+}
+
+func checkAllReduceTasks() {
 
 }
 
@@ -80,12 +134,22 @@ func MakeMaster(files []string, nReduce int) *Master {
 	m := Master{}
 
 	// Your code here.
-	// initialize master
+
+	m.numberOfReduceTasks = nReduce
 
 	// initialize map tasks
+	m.mapTasks = make([]MapTask, len(files))
+
+	for i, f := range files {
+		m.mapTasks[i] = MapTask{taskId: i, stage: 0, fileName: f}
+	}
 
 	// initialize reuduce tasks
+	m.reduceTasks = make([]ReduceTask, len(files))
 
+	for i := 0; i < nReduce; i++ {
+		m.reduceTasks[i] = ReduceTask{taskId: i, stage: 0, bucketNumber: i}
+	}
 	m.server()
 	return &m
 }

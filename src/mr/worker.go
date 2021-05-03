@@ -43,7 +43,7 @@ func Worker(mapf func(string, string) []KeyValue,
 
 	for !reply.AllTasksDone {
 		if reply.TaskType == "Map" {
-			fmt.Println("Map running on task %v\n", reply.TaskId)
+			fmt.Printf("Map running on task %v\n", reply.TaskId)
 
 			// execute map function
 			// runMap()
@@ -52,7 +52,7 @@ func Worker(mapf func(string, string) []KeyValue,
 
 			// after success report back to master
 		} else if reply.TaskType == "Reduce" {
-			fmt.Println("Reduce running on task %v\n", reply.TaskId)
+			fmt.Printf("Reduce running on task %v\n", reply.TaskId)
 
 			// execute reduce function
 			// runReduce()
@@ -61,7 +61,7 @@ func Worker(mapf func(string, string) []KeyValue,
 
 			// after success report back to master
 		} else {
-			fmt.Println("No task received from master..\n")
+			fmt.Printf("No task received from master..\n")
 		}
 
 		args = GetTaskArgs{}
