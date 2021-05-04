@@ -10,6 +10,9 @@ import (
 	"sync"
 )
 
+// Stages of task
+// 0 not yet started, 1 started, 2 completed
+
 type Master struct {
 	// Your definitions here.
 	mapTasks            []MapTask
@@ -38,53 +41,69 @@ func (m *Master) GetWorkerTask(args *GetTaskArgs, reply *GetTaskReply) error {
 
 	fmt.Println("New task request from worker")
 
-	// if all map jobs are not completed
-	for i, mt := range m.mapTasks {
-		if mt.stage == 0 {
-			// adding all values im reply for a task
-			reply.TaskId = mt.taskId
-			reply.FileName = mt.fileName
-			reply.TaskType = "Map"
-			reply.AllTasksDone = false
-			reply.NumberOfReducers = m.numberOfReduceTasks
+	if !checkIfAllMapTasksAreDone() {
+		// if all reduce jobs are not completed
+		for i, mt := range m.mapTasks {
+			if mt.stage == 0 {
+				// adding all values im reply for a task
+				reply.TaskId = mt.taskId
+				reply.FileName = mt.fileName
+				reply.TaskType = "Map"
+				reply.AllTasksDone = false
+				reply.NumberOfReducers = m.numberOfReduceTasks
 
-			// run that task
-			mt.stage = 1
-			m.mapTasks[i] = mt
+				// run that task
+				mt.stage = 1
+				m.mapTasks[i] = mt
 
-			fmt.Printf("Map task started running %+v\n", mt)
-			return nil
+				fmt.Printf("Map task started running %+v\n", mt)
+				return nil
+			}
 		}
+	} else if !checkIfAllReduceTasksAreDone() {
+		// if all reduce jobs are not completed
+		for i, rt := range m.reduceTasks {
+			if rt.stage == 0 {
+				reply.TaskId = rt.taskId
+				reply.TaskType = "Reduce"
+				reply.AllTasksDone = false
+				reply.NumberOfReducers = m.numberOfReduceTasks
+				reply.BucketNumber = i
+
+				rt.stage = 1
+				m.reduceTasks[i] = rt
+				fmt.Printf("Reduce task started running %+v\n", rt)
+
+				return nil
+			}
+		}
+	} else {
+		// if all tasks are done
+		reply.AllTasksDone = true
+		return nil
 	}
 
-	// if all reduce jobs are not completed
-	for i, mt := range m.reduceTasks {
-		if mt.stage == 0 {
-			reply.TaskId = mt.taskId
-			reply.TaskType = "Redcue"
-			reply.AllTasksDone = false
-			reply.NumberOfReducers = m.numberOfReduceTasks
-			reply.BucketNumber = i
+}
 
-			mt.stage = 1
-			m.reduceTasks[i] = mt
-			fmt.Printf("Reduce task started running %+v\n", mt)
+func (m *Master) checkIfAllMapTasksAreDone() bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 
-			return nil
+	for _, mt := range m.mapTasks {
+		if mt.stage != 2 {
+			return false
 		}
 	}
-
-	// if all tasks are done
-	reply.AllTasksDone = true
-	return nil
+	return true
 }
 
-func checkAllMapTasks() {
-
-}
-
-func checkAllReduceTasks() {
-
+func (m *Master) checkIfAllReduceTasksAreDone() {
+	for _, rt := range m.reduceTasks {
+		if rt.stage != 2 {
+			return false
+		}
+	}
+	return true
 }
 
 //
