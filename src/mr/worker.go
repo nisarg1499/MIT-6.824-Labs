@@ -1,10 +1,13 @@
 package mr
 
 import (
+	"encoding/json"
 	"fmt"
 	"hash/fnv"
+	"io/ioutil"
 	"log"
 	"net/rpc"
+	"os"
 )
 
 //
@@ -69,6 +72,49 @@ func Worker(mapf func(string, string) []KeyValue,
 
 		call("Master.GetWorkerTask", &args, &reply)
 	}
+
+}
+
+func runMap(mapf func(string, string) []KeyValue, task *GetTaskReply) error {
+
+	inputFileName := task.FileName
+
+	// reading files and stuff taken from mrsequential file
+	file, err := os.Open(inputFileName)
+	if err != nil {
+		log.Fatalf("cannot open %v", inputFileName)
+	}
+	content, err := ioutil.ReadAll(file)
+	if err != nil {
+		log.Fatalf("cannot read %v", inputFileName)
+	}
+	file.Close()
+	// Execute map function and store key values
+	kva := mapf(inputFileName, string(content))
+
+	// We need to make NumberOfReducers files to store maps
+	data := make([][]KeyValue, task.NumberOfReducers)
+
+	// We need to make a partition of X*Y where X is Map task number and Y is reduce task number.
+	for x := 0; x < len(kva); x++ {
+		y := ihash(kva[x].Key) % int(task.NumberOfReducers) // To make sure number is in the range
+		data[y] = append(data[y], kva[x])
+	}
+
+	// Now we have distributed files based on keys of map, now we need to save these files as temporary files
+	for y := 0; y < len(data); y++ {
+		tempFile, _ := ioutil.TempFile(".", "")
+		enc := json.NewEncoder(tempFile)
+		for _, keyValuePair := range data[y] {
+			err := enc.Encode(&keyValuePair)
+			if err != nil {
+				log.Fatalf("cannot encode json %v", keyValuePair.Key)
+			}
+		}
+		os.Rename(tempFile.Name(), "mr-"+fmt.Sprint(task.Index)+"-"+fmt.Sprint(y))
+		ofile.Close()
+	}
+	return nil
 
 }
 
