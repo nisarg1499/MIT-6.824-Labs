@@ -55,14 +55,14 @@ func Worker(mapf func(string, string) []KeyValue,
 			mapReportReply := ReportOnMapToMasterReply{}
 			// in reponse of map function check whether it was success or not, if not then change status to 0
 			if err != nil {
-				mapReportArgs.Status = 1
+				mapReportArgs.Status = 2
 			} else {
 				mapReportArgs.Status = 0
 			}
 			mapReportArgs.TaskId = reply.TaskId
 
 			// after success report back to master
-
+			call("Master.ReportOnMap", &mapReportArgs, &mapReportReply)
 		} else if reply.TaskType == "Reduce" {
 			fmt.Printf("Reduce running on task %v\n", reply.TaskId)
 
@@ -120,8 +120,8 @@ func runMap(mapf func(string, string) []KeyValue, task *GetTaskReply) error {
 				log.Fatalf("cannot encode json %v", keyValuePair.Key)
 			}
 		}
-		os.Rename(tempFile.Name(), "mr-"+fmt.Sprint(task.Index)+"-"+fmt.Sprint(y))
-		ofile.Close()
+		os.Rename(tempFile.Name(), "mr-"+fmt.Sprint(task.TaskId)+"-"+fmt.Sprint(y))
+		tempFile.Close()
 	}
 	return nil
 

@@ -41,10 +41,13 @@ func (m *Master) GetWorkerTask(args *GetTaskArgs, reply *GetTaskReply) error {
 
 	fmt.Println("New task request from worker")
 
-	if !checkIfAllMapTasksAreDone() {
+	if !m.checkIfAllMapTasksAreDone() {
+		fmt.Println("Inside map tasks allotment, before for loop")
 		// if all reduce jobs are not completed
 		for i, mt := range m.mapTasks {
+			fmt.Println("Iterating map tasks")
 			if mt.stage == 0 {
+				fmt.Println("In stage == 0")
 				// adding all values im reply for a task
 				reply.TaskId = mt.taskId
 				reply.FileName = mt.fileName
@@ -60,7 +63,7 @@ func (m *Master) GetWorkerTask(args *GetTaskArgs, reply *GetTaskReply) error {
 				return nil
 			}
 		}
-	} else if !checkIfAllReduceTasksAreDone() {
+	} else if !m.checkIfAllReduceTasksAreDone() {
 		// if all reduce jobs are not completed
 		for i, rt := range m.reduceTasks {
 			if rt.stage == 0 {
@@ -82,12 +85,10 @@ func (m *Master) GetWorkerTask(args *GetTaskArgs, reply *GetTaskReply) error {
 		reply.AllTasksDone = true
 		return nil
 	}
-
+	return nil
 }
 
 func (m *Master) checkIfAllMapTasksAreDone() bool {
-	m.mu.Lock()
-	defer m.mu.Unlock()
 
 	for _, mt := range m.mapTasks {
 		if mt.stage != 2 {
@@ -97,13 +98,26 @@ func (m *Master) checkIfAllMapTasksAreDone() bool {
 	return true
 }
 
-func (m *Master) checkIfAllReduceTasksAreDone() {
+func (m *Master) checkIfAllReduceTasksAreDone() bool {
 	for _, rt := range m.reduceTasks {
 		if rt.stage != 2 {
 			return false
 		}
 	}
 	return true
+}
+
+func (m *Master) ReportOnMap(args *ReportOnMapToMasterArgs, reply *ReportOnMapToMasterReply) error {
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if args.Status == 2 {
+		m.mapTasks[args.TaskId].stage = 2
+	} else {
+		m.mapTasks[args.TaskId].stage = 0
+	}
+	return nil
 }
 
 //
@@ -164,7 +178,7 @@ func MakeMaster(files []string, nReduce int) *Master {
 	}
 
 	// initialize reuduce tasks
-	m.reduceTasks = make([]ReduceTask, len(files))
+	m.reduceTasks = make([]ReduceTask, nReduce)
 
 	for i := 0; i < nReduce; i++ {
 		m.reduceTasks[i] = ReduceTask{taskId: i, stage: 0, bucketNumber: i}
