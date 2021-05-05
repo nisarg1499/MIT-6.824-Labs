@@ -49,11 +49,20 @@ func Worker(mapf func(string, string) []KeyValue,
 			fmt.Printf("Map running on task %v\n", reply.TaskId)
 
 			// execute map function
-			// runMap()
+			err := runMap(mapf, &reply)
 
-			// in reply of map function check whether it was success or not, if not then change status to running and report master to run it again
+			mapReportArgs := ReportOnMapToMasterArgs{}
+			mapReportReply := ReportOnMapToMasterReply{}
+			// in reponse of map function check whether it was success or not, if not then change status to 0
+			if err != nil {
+				mapReportArgs.Status = 1
+			} else {
+				mapReportArgs.Status = 0
+			}
+			mapReportArgs.TaskId = reply.TaskId
 
 			// after success report back to master
+
 		} else if reply.TaskType == "Reduce" {
 			fmt.Printf("Reduce running on task %v\n", reply.TaskId)
 

@@ -26,6 +26,14 @@ type ExampleReply struct {
 
 // Add your RPC definitions here.
 
+type ReportOnMapToMasterArgs struct {
+	Status int
+	TaskId int
+}
+
+type ReportOnMapToMasterReply struct {
+}
+
 type GetTaskArgs struct {
 }
 
