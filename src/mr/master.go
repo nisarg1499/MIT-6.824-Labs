@@ -180,6 +180,11 @@ func (m *Master) Done() bool {
 	ret := false
 
 	// Your code here.
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.checkIfAllMapTasksAreDone() && m.checkIfAllReduceTasksAreDone() {
+		ret = true
+	}
 
 	return ret
 }

@@ -23,6 +23,13 @@ type worker struct {
 	id int
 }
 
+type ByKey []KeyValue
+
+// for sorting by key.
+func (a ByKey) Len() int           { return len(a) }
+func (a ByKey) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ByKey) Less(i, j int) bool { return a[i].Key < a[j].Key }
+
 //
 // use ihash(key) % NReduce to choose the reduce
 // task number for each KeyValue emitted by Map.
@@ -165,12 +172,12 @@ func runReduce(reducef func(string, []string) string, task *GetTaskReply) error 
 	}
 
 	// Just for debug purpose
-	for a := 0; a < len(kva); a++ {
-		fmt.Printf("Key Value after decoding %+v", kva[a])
-	}
+	// for a := 0; a < len(intermediate); a++ {
+	// 	fmt.Printf("Key Value after decoding %+v", intermediate[a])
+	// }
 
 	// took mrsequential reduce code
-	sort.Sort(ByKey(kva))
+	sort.Sort(ByKey(intermediate))
 
 	ofile, err := ioutil.TempFile("", "mr-out")
 	oname := ofile.Name()
@@ -198,8 +205,8 @@ func runReduce(reducef func(string, []string) string, task *GetTaskReply) error 
 	// atomically rename temporary(out named) file
 	err = os.Rename(oname, finalName)
 	if err != nil {
-		PrintDebugf("Failed to rename map file %v to %v", oname, finalName)
-		return "", err
+		fmt.Printf("Failed to rename map file %v to %v", oname, finalName)
+		return err
 	}
 
 	return nil
