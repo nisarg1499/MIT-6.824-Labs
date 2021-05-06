@@ -132,6 +132,20 @@ func (m *Master) ReportOnMap(args *ReportOnMapToMasterArgs, reply *ReportOnMapTo
 	return nil
 }
 
+func (m *Master) ReportOnReduce(args *ReportOnMapToMasterArgs, reply *ReportOnMapToMasterReply) error {
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if args.Status == 2 {
+		m.reduceTasks[args.TaskId].stage = 2
+	} else {
+		m.reduceTasks[args.TaskId].stage = 0
+	}
+
+	return nil
+}
+
 //
 // an example RPC handler.
 //

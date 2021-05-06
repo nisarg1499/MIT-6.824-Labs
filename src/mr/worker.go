@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/rpc"
 	"os"
+	"sort"
 )
 
 //
@@ -71,11 +72,21 @@ func Worker(mapf func(string, string) []KeyValue,
 			fmt.Printf("Reduce running on task %v\n", reply.TaskId)
 
 			// execute reduce function
-			// runReduce()
+			err := runReduce(reducef, &reply)
+
+			mapReportArgs := ReportOnMapToMasterArgs{}
+			mapReportReply := ReportOnMapToMasterReply{}
 
 			// in reply check status of reduce, if failed then update master to run it again
+			if err == nil {
+				mapReportArgs.Status = 2
+			} else {
+				mapReportArgs.Status = 0
+			}
+			mapReportArgs.TaskId = reply.TaskId
 
 			// after success report back to master
+			call("Master.ReportOnReduce", &mapReportArgs, &mapReportReply)
 		} else {
 			fmt.Printf("No task received from master..\n")
 		}
@@ -133,6 +144,65 @@ func runMap(mapf func(string, string) []KeyValue, task *GetTaskReply) ([]string,
 	fmt.Println("Map success done")
 	return intermediateLocations, nil
 
+}
+
+func runReduce(reducef func(string, []string) string, task *GetTaskReply) error {
+
+	intermediate := []KeyValue{}
+	for _, fileName := range task.TempMapFilesLocation {
+		file, err := os.Open(fileName)
+		if err != nil {
+			log.Fatalf("cannot open %v", fileName)
+		}
+		dec := json.NewDecoder(file)
+		for {
+			var kv KeyValue
+			if err := dec.Decode(&kv); err != nil {
+				break
+			}
+			intermediate = append(intermediate, kv)
+		}
+	}
+
+	// Just for debug purpose
+	for a := 0; a < len(kva); a++ {
+		fmt.Printf("Key Value after decoding %+v", kva[a])
+	}
+
+	// took mrsequential reduce code
+	sort.Sort(ByKey(kva))
+
+	ofile, err := ioutil.TempFile("", "mr-out")
+	oname := ofile.Name()
+
+	i := 0
+	for i < len(intermediate) {
+		j := i + 1
+		for j < len(intermediate) && intermediate[j].Key == intermediate[i].Key {
+			j++
+		}
+		values := []string{}
+		for k := i; k < j; k++ {
+			values = append(values, intermediate[k].Value)
+		}
+		output := reducef(intermediate[i].Key, values)
+
+		// this is the correct format for each line of Reduce output.
+		fmt.Fprintf(ofile, "%v %v\n", intermediate[i].Key, output)
+
+		i = j
+	}
+	ofile.Close()
+
+	finalName := "mr-out-" + fmt.Sprint(task.TaskId)
+	// atomically rename temporary(out named) file
+	err = os.Rename(oname, finalName)
+	if err != nil {
+		PrintDebugf("Failed to rename map file %v to %v", oname, finalName)
+		return "", err
+	}
+
+	return nil
 }
 
 //
