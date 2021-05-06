@@ -15,10 +15,11 @@ import (
 
 type Master struct {
 	// Your definitions here.
-	mapTasks            []MapTask
-	reduceTasks         []ReduceTask
-	mu                  sync.Mutex
-	numberOfReduceTasks int
+	mapTasks             []MapTask
+	reduceTasks          []ReduceTask
+	mu                   sync.Mutex
+	numberOfReduceTasks  int
+	tempMapFilesLocation [][]string
 }
 
 type MapTask struct {
@@ -28,9 +29,8 @@ type MapTask struct {
 }
 
 type ReduceTask struct {
-	taskId       int
-	stage        int
-	bucketNumber int
+	taskId int
+	stage  int
 }
 
 // Your code here -- RPC handlers for the worker to call.
@@ -45,9 +45,9 @@ func (m *Master) GetWorkerTask(args *GetTaskArgs, reply *GetTaskReply) error {
 		fmt.Println("Inside map tasks allotment, before for loop")
 		// if all reduce jobs are not completed
 		for i, mt := range m.mapTasks {
-			fmt.Println("Iterating map tasks")
+			// fmt.Println("Iterating map tasks")
 			if mt.stage == 0 {
-				fmt.Println("In stage == 0")
+				fmt.Printf("Assigning task with taskId %d\n", mt.taskId)
 				// adding all values im reply for a task
 				reply.TaskId = mt.taskId
 				reply.FileName = mt.fileName
@@ -71,7 +71,12 @@ func (m *Master) GetWorkerTask(args *GetTaskArgs, reply *GetTaskReply) error {
 				reply.TaskType = "Reduce"
 				reply.AllTasksDone = false
 				reply.NumberOfReducers = m.numberOfReduceTasks
-				reply.BucketNumber = i
+				temporaryFileNames := make([]string, 0)
+				// Fetched the arr row[], and then appending small chunks name into temporaryFileNames
+				for _, arr := range m.tempMapFilesLocation {
+					temporaryFileNames = append(temporaryFileNames, arr[rt.taskId])
+				}
+				reply.TempMapFilesLocation = temporaryFileNames
 
 				rt.stage = 1
 				m.reduceTasks[i] = rt
@@ -82,6 +87,7 @@ func (m *Master) GetWorkerTask(args *GetTaskArgs, reply *GetTaskReply) error {
 		}
 	} else {
 		// if all tasks are done
+		fmt.Println("Map task done....")
 		reply.AllTasksDone = true
 		return nil
 	}
@@ -92,9 +98,11 @@ func (m *Master) checkIfAllMapTasksAreDone() bool {
 
 	for _, mt := range m.mapTasks {
 		if mt.stage != 2 {
+			fmt.Println("In check of all map tasks done : false")
 			return false
 		}
 	}
+	fmt.Println("In check of all map tasks done : true")
 	return true
 }
 
@@ -112,11 +120,15 @@ func (m *Master) ReportOnMap(args *ReportOnMapToMasterArgs, reply *ReportOnMapTo
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	m.tempMapFilesLocation[args.TaskId] = args.TempMapFilesLocation
+
 	if args.Status == 2 {
+		fmt.Println("Updating the stage of map task of master")
 		m.mapTasks[args.TaskId].stage = 2
 	} else {
 		m.mapTasks[args.TaskId].stage = 0
 	}
+	fmt.Printf("After updating the stage, value is %+v\n", m.mapTasks[args.TaskId])
 	return nil
 }
 
@@ -169,20 +181,23 @@ func MakeMaster(files []string, nReduce int) *Master {
 	// Your code here.
 
 	m.numberOfReduceTasks = nReduce
-
+	fmt.Println("Number of reducers ", nReduce)
 	// initialize map tasks
 	m.mapTasks = make([]MapTask, len(files))
+	fmt.Printf("Length of files %d\n", len(files))
 
 	for i, f := range files {
 		m.mapTasks[i] = MapTask{taskId: i, stage: 0, fileName: f}
 	}
+	fmt.Printf("Maptask stored in master : %+v\n", m.mapTasks[0])
 
 	// initialize reuduce tasks
 	m.reduceTasks = make([]ReduceTask, nReduce)
 
 	for i := 0; i < nReduce; i++ {
-		m.reduceTasks[i] = ReduceTask{taskId: i, stage: 0, bucketNumber: i}
+		m.reduceTasks[i] = ReduceTask{taskId: i, stage: 0}
 	}
+	m.tempMapFilesLocation = make([][]string, len(files))
 	m.server()
 	return &m
 }

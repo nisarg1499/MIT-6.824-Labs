@@ -27,8 +27,9 @@ type ExampleReply struct {
 // Add your RPC definitions here.
 
 type ReportOnMapToMasterArgs struct {
-	Status int
-	TaskId int
+	Status               int
+	TaskId               int
+	TempMapFilesLocation []string
 }
 
 type ReportOnMapToMasterReply struct {
@@ -38,13 +39,12 @@ type GetTaskArgs struct {
 }
 
 type GetTaskReply struct {
-	TaskId           int
-	FileName         string
-	TaskType         string
-	AllTasksDone     bool
-	NumberOfReducers int
-	BucketNumber     int
-	// BucketNumber is used for only reduce tasks, as we have intermediate buckets which will be used for reduce tasks
+	TaskId               int
+	FileName             string
+	TaskType             string
+	AllTasksDone         bool
+	NumberOfReducers     int
+	TempMapFilesLocation []string
 }
 
 // Would need a couple of definitions for map and reduce tasks

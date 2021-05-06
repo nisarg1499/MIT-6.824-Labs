@@ -42,24 +42,28 @@ func Worker(mapf func(string, string) []KeyValue,
 	args := GetTaskArgs{}
 	reply := GetTaskReply{}
 
-	call("Master.GetWorkerTask", &args, &reply)
+	masterStatus := call("Master.GetWorkerTask", &args, &reply)
 
-	for !reply.AllTasksDone {
+	for masterStatus == true && !reply.AllTasksDone {
 		if reply.TaskType == "Map" {
-			fmt.Printf("Map running on task %v\n", reply.TaskId)
+			fmt.Printf("Map running on task %d\n", reply.TaskId)
 
 			// execute map function
-			err := runMap(mapf, &reply)
+			intermediateLocations, err := runMap(mapf, &reply)
 
 			mapReportArgs := ReportOnMapToMasterArgs{}
 			mapReportReply := ReportOnMapToMasterReply{}
 			// in reponse of map function check whether it was success or not, if not then change status to 0
-			if err != nil {
+
+			fmt.Println("Err variable from map : ", err)
+			if err == nil {
+				fmt.Println("In status = 2")
 				mapReportArgs.Status = 2
 			} else {
 				mapReportArgs.Status = 0
 			}
 			mapReportArgs.TaskId = reply.TaskId
+			mapReportArgs.TempMapFilesLocation = intermediateLocations
 
 			// after success report back to master
 			call("Master.ReportOnMap", &mapReportArgs, &mapReportReply)
@@ -79,15 +83,15 @@ func Worker(mapf func(string, string) []KeyValue,
 		args = GetTaskArgs{}
 		reply = GetTaskReply{}
 
-		call("Master.GetWorkerTask", &args, &reply)
+		masterStatus = call("Master.GetWorkerTask", &args, &reply)
 	}
 
 }
 
-func runMap(mapf func(string, string) []KeyValue, task *GetTaskReply) error {
+func runMap(mapf func(string, string) []KeyValue, task *GetTaskReply) ([]string, error) {
 
 	inputFileName := task.FileName
-
+	fmt.Printf("File Name : %v\n", inputFileName)
 	// reading files and stuff taken from mrsequential file
 	file, err := os.Open(inputFileName)
 	if err != nil {
@@ -100,6 +104,7 @@ func runMap(mapf func(string, string) []KeyValue, task *GetTaskReply) error {
 	file.Close()
 	// Execute map function and store key values
 	kva := mapf(inputFileName, string(content))
+	fmt.Printf("My kva from map : %+v\n", kva)
 
 	// We need to make NumberOfReducers files to store maps
 	data := make([][]KeyValue, task.NumberOfReducers)
@@ -110,6 +115,7 @@ func runMap(mapf func(string, string) []KeyValue, task *GetTaskReply) error {
 		data[y] = append(data[y], kva[x])
 	}
 
+	var intermediateLocations []string
 	// Now we have distributed files based on keys of map, now we need to save these files as temporary files
 	for y := 0; y < len(data); y++ {
 		tempFile, _ := ioutil.TempFile(".", "")
@@ -122,8 +128,10 @@ func runMap(mapf func(string, string) []KeyValue, task *GetTaskReply) error {
 		}
 		os.Rename(tempFile.Name(), "mr-"+fmt.Sprint(task.TaskId)+"-"+fmt.Sprint(y))
 		tempFile.Close()
+		intermediateLocations = append(intermediateLocations, "mr-"+fmt.Sprint(task.TaskId)+"-"+fmt.Sprint(y))
 	}
-	return nil
+	fmt.Println("Map success done")
+	return intermediateLocations, nil
 
 }
 
