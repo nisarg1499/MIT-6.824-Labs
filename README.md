@@ -27,6 +27,10 @@ You can find the course description and labs [here](http://nil.csail.mit.edu/6.8
 	- [ ] Implementation of Lab3B
 	- [ ] Document of explaination of the approach taken, difficulties faced and topics learnt
 
+
+## Code
+I will add detailed documentation of the implemented flow. Right now, only distributed map reduce is implemented. If you want to see the logic, you can have a look at files inside `mr` directory.
+
 ## Aim
 To complete all the labs with full understanding and read all the given papers. I will create individual folders and upload the approach, topics learnt and some notes taken by seeing lecture.
 
@@ -34,3 +38,7 @@ To complete all the labs with full understanding and read all the given papers. 
 - I would like to thank Professor [Robert Morris](http://nil.lcs.mit.edu/rtm/) and MIT to upload these lectures on youtube and keeping the MIT Labs open for everyone.
 
 - I would also like to thank TA's for such a nice explaination of GO concurrency concepts in lectures(Lecture 5). It was really helpful.
+
+
+## Contributions
+- If you have some better ideas and implementation, I am open to discussion and feel free to open an issue followed by a Pull Request.
