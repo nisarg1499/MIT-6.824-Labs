@@ -19,10 +19,6 @@ type KeyValue struct {
 	Value string
 }
 
-type worker struct {
-	id int
-}
-
 type ByKey []KeyValue
 
 // for sorting by key.
@@ -54,7 +50,7 @@ func Worker(mapf func(string, string) []KeyValue,
 
 	for masterStatus == true && !reply.AllTasksDone {
 		if reply.TaskType == "Map" {
-			fmt.Printf("Map running on task %d\n", reply.TaskId)
+			// fmt.Printf("Map running on task %d\n", reply.TaskId)
 
 			// execute map function
 			intermediateLocations, err := runMap(mapf, &reply)
@@ -63,9 +59,9 @@ func Worker(mapf func(string, string) []KeyValue,
 			mapReportReply := ReportOnMapToMasterReply{}
 			// in reponse of map function check whether it was success or not, if not then change status to 0
 
-			fmt.Println("Err variable from map : ", err)
+			// fmt.Println("Err variable from map : ", err)
 			if err == nil {
-				fmt.Println("In status = 2")
+				// fmt.Println("In status = 2")
 				mapReportArgs.Status = 2
 			} else {
 				mapReportArgs.Status = 0
@@ -76,7 +72,7 @@ func Worker(mapf func(string, string) []KeyValue,
 			// after success report back to master
 			call("Master.ReportOnMap", &mapReportArgs, &mapReportReply)
 		} else if reply.TaskType == "Reduce" {
-			fmt.Printf("Reduce running on task %v\n", reply.TaskId)
+			// fmt.Printf("Reduce running on task %v\n", reply.TaskId)
 
 			// execute reduce function
 			err := runReduce(reducef, &reply)
@@ -95,7 +91,7 @@ func Worker(mapf func(string, string) []KeyValue,
 			// after success report back to master
 			call("Master.ReportOnReduce", &mapReportArgs, &mapReportReply)
 		} else {
-			fmt.Printf("No task received from master..\n")
+			// fmt.Printf("No task received from master..\n")
 		}
 
 		args = GetTaskArgs{}
@@ -109,7 +105,7 @@ func Worker(mapf func(string, string) []KeyValue,
 func runMap(mapf func(string, string) []KeyValue, task *GetTaskReply) ([]string, error) {
 
 	inputFileName := task.FileName
-	fmt.Printf("File Name : %v\n", inputFileName)
+	// fmt.Printf("File Name : %v\n", inputFileName)
 	// reading files and stuff taken from mrsequential file
 	file, err := os.Open(inputFileName)
 	if err != nil {
@@ -122,7 +118,7 @@ func runMap(mapf func(string, string) []KeyValue, task *GetTaskReply) ([]string,
 	file.Close()
 	// Execute map function and store key values
 	kva := mapf(inputFileName, string(content))
-	fmt.Printf("My kva from map : %+v\n", kva)
+	// fmt.Printf("My kva from map : %+v\n", kva)
 
 	// We need to make NumberOfReducers files to store maps
 	data := make([][]KeyValue, task.NumberOfReducers)
@@ -148,7 +144,7 @@ func runMap(mapf func(string, string) []KeyValue, task *GetTaskReply) ([]string,
 		tempFile.Close()
 		intermediateLocations = append(intermediateLocations, "mr-"+fmt.Sprint(task.TaskId)+"-"+fmt.Sprint(y))
 	}
-	fmt.Println("Map success done")
+	// fmt.Println("Map success done")
 	return intermediateLocations, nil
 
 }
@@ -205,7 +201,7 @@ func runReduce(reducef func(string, []string) string, task *GetTaskReply) error 
 	// atomically rename temporary(out named) file
 	err = os.Rename(oname, finalName)
 	if err != nil {
-		fmt.Printf("Failed to rename map file %v to %v", oname, finalName)
+		// fmt.Printf("Failed to rename map file %v to %v", oname, finalName)
 		return err
 	}
 

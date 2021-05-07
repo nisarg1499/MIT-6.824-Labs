@@ -1,13 +1,14 @@
 package mr
 
 import (
-	"fmt"
 	"log"
 	"net"
 	"net/http"
 	"net/rpc"
 	"os"
+	"strconv"
 	"sync"
+	"time"
 )
 
 // Stages of task
@@ -39,15 +40,15 @@ func (m *Master) GetWorkerTask(args *GetTaskArgs, reply *GetTaskReply) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	fmt.Println("New task request from worker")
+	// fmt.Println("New task request from worker")
 
 	if !m.checkIfAllMapTasksAreDone() {
-		fmt.Println("Inside map tasks allotment, before for loop")
+		// fmt.Println("Inside map tasks allotment, before for loop")
 		// if all reduce jobs are not completed
 		for i, mt := range m.mapTasks {
 			// fmt.Println("Iterating map tasks")
 			if mt.stage == 0 {
-				fmt.Printf("Assigning task with taskId %d\n", mt.taskId)
+				// fmt.Printf("Assigning task with taskId %d\n", mt.taskId)
 				// adding all values im reply for a task
 				reply.TaskId = mt.taskId
 				reply.FileName = mt.fileName
@@ -59,7 +60,8 @@ func (m *Master) GetWorkerTask(args *GetTaskArgs, reply *GetTaskReply) error {
 				mt.stage = 1
 				m.mapTasks[i] = mt
 
-				fmt.Printf("Map task started running %+v\n", mt)
+				go TenSecondsCheckMap(mt.taskId, m)
+				// fmt.Printf("Map task started running %+v\n", mt)
 				return nil
 			}
 		}
@@ -80,14 +82,14 @@ func (m *Master) GetWorkerTask(args *GetTaskArgs, reply *GetTaskReply) error {
 
 				rt.stage = 1
 				m.reduceTasks[i] = rt
-				fmt.Printf("Reduce task started running %+v\n", rt)
-
+				// fmt.Printf("Reduce task started running %+v\n", rt)
+				go TenSecondsCheckReduce(rt.taskId, m)
 				return nil
 			}
 		}
 	} else {
 		// if all tasks are done
-		fmt.Println("Map task done....")
+		// fmt.Println("Map task done....")
 		reply.AllTasksDone = true
 		return nil
 	}
@@ -98,11 +100,11 @@ func (m *Master) checkIfAllMapTasksAreDone() bool {
 
 	for _, mt := range m.mapTasks {
 		if mt.stage != 2 {
-			fmt.Println("In check of all map tasks done : false")
+			// fmt.Println("In check of all map tasks done : false")
 			return false
 		}
 	}
-	fmt.Println("In check of all map tasks done : true")
+	// fmt.Println("In check of all map tasks done : true")
 	return true
 }
 
@@ -123,12 +125,12 @@ func (m *Master) ReportOnMap(args *ReportOnMapToMasterArgs, reply *ReportOnMapTo
 	m.tempMapFilesLocation[args.TaskId] = args.TempMapFilesLocation
 
 	if args.Status == 2 {
-		fmt.Println("Updating the stage of map task of master")
+		// fmt.Println("Updating the stage of map task of master")
 		m.mapTasks[args.TaskId].stage = 2
 	} else {
 		m.mapTasks[args.TaskId].stage = 0
 	}
-	fmt.Printf("After updating the stage, value is %+v\n", m.mapTasks[args.TaskId])
+	// fmt.Printf("After updating the stage, value is %+v\n", m.mapTasks[args.TaskId])
 	return nil
 }
 
@@ -144,6 +146,35 @@ func (m *Master) ReportOnReduce(args *ReportOnMapToMasterArgs, reply *ReportOnMa
 	}
 
 	return nil
+}
+
+func TenSecondsCheckMap(taskId int, m *Master) {
+
+	time.Sleep(10 * time.Second)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if len(m.tempMapFilesLocation[taskId]) == m.numberOfReduceTasks {
+		m.mapTasks[taskId].stage = 2
+	} else {
+		m.mapTasks[taskId].stage = 0
+	}
+	return
+}
+
+func TenSecondsCheckReduce(taskId int, m *Master) {
+
+	time.Sleep(10 * time.Second)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	checkFileName := "mr-out" + strconv.Itoa(taskId)
+	if _, err := os.Stat(checkFileName); err == nil {
+		m.reduceTasks[taskId].stage = 2
+	} else {
+		m.reduceTasks[taskId].stage = 0
+	}
+	return
 }
 
 //
@@ -200,15 +231,15 @@ func MakeMaster(files []string, nReduce int) *Master {
 	// Your code here.
 
 	m.numberOfReduceTasks = nReduce
-	fmt.Println("Number of reducers ", nReduce)
+	// fmt.Println("Number of reducers ", nReduce)
 	// initialize map tasks
 	m.mapTasks = make([]MapTask, len(files))
-	fmt.Printf("Length of files %d\n", len(files))
+	// fmt.Printf("Length of files %d\n", len(files))
 
 	for i, f := range files {
 		m.mapTasks[i] = MapTask{taskId: i, stage: 0, fileName: f}
 	}
-	fmt.Printf("Maptask stored in master : %+v\n", m.mapTasks[0])
+	// fmt.Printf("Maptask stored in master : %+v\n", m.mapTasks[0])
 
 	// initialize reuduce tasks
 	m.reduceTasks = make([]ReduceTask, nReduce)
