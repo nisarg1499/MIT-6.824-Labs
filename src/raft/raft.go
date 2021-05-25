@@ -56,6 +56,7 @@ const (
 )
 
 const (
+	HeartBeatTimer     = 150
 	ElectionTimeoutMin = 600
 	ElectionTimeoutMax = 900
 )
@@ -168,6 +169,16 @@ type RequestVoteReply struct {
 	VoteGranted bool
 }
 
+type AppendEntriesArg struct {
+	Term     int
+	LeaderId int
+}
+
+type AppendEntriesReply struct {
+	Term    int
+	Success bool
+}
+
 // other way to start the code (directly initialize with follower and then check for heartbeat)
 func (rf *Raft) startLeaderElection() {
 	for {
@@ -195,10 +206,10 @@ func (rf *Raft) electionStarts() {
 	totalVotes := 1
 
 	args := RequestVoteArgs{
-		rf.currentTerm,
-		rf.me,
-		0,
-		0,
+		Term:         rf.currentTerm,
+		CandidateId:  rf.me,
+		LastLogIndex: 0,
+		LastLogTerm:  0,
 	}
 	rf.mu.Unlock()
 
@@ -252,6 +263,40 @@ func (rf *Raft) stateChange(state State) {
 	}
 }
 
+func (rf *Raft) startHeartBeat() {
+	for {
+		rf.mu.Lock()
+		if rf.state != Leader {
+			rf.mu.Unlock()
+			return
+		}
+		appendArgs := AppendEntriesArg{
+			Term:     rf.currentTerm,
+			LeaderId: rf.me,
+		}
+
+		for x := 0; x < len(rf.peers); x++ {
+			if x != rf.me {
+				go func(server int) {
+					appendReply := AppendEntriesReply{}
+					DPrintf("%d sending append entry to server %d", rf.me, server)
+					result := rf.sendAppendEntries(server, &appendArgs, &appendReply)
+
+					if !result {
+						return
+					}
+
+					if appendReply.Term > rf.currentTerm {
+						rf.stateChange(Follower)
+						return
+					}
+				}(x)
+			}
+		}
+		rf.mu.Unlock()
+	}
+}
+
 func (rf *Raft) checkTimer() {
 	for {
 		timeToSleep := rf.electionTimeOutForMe
@@ -272,6 +317,29 @@ func (rf *Raft) checkTimer() {
 //
 func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 	// Your code here (2A, 2B).
+	rf.mu.Lock()
+	defer rf.mu.Unlock()
+
+	DPrintf("%d receives request vote from %d for term %d", rf.me, args.CandidateId, args.Term)
+	if args.Term < rf.currentTerm {
+		reply.Term = rf.currentTerm
+		reply.VoteGranted = false
+		return
+	}
+
+	// also add a check whether candidate's log is atleast p-to-date as reciever's log
+	if rf.votedFor == -1 || rf.votedFor == args.CandidateId {
+		rf.votedFor = args.CandidateId
+		rf.currentTerm = args.Term
+		reply.Term = rf.currentTerm
+		reply.VoteGranted = true
+	}
+}
+
+func (rf *Raft) AppendEntries(server int, args *AppendEntriesArg, reply *AppendEntriesReply) {
+	// Your code here (2A, 2B).
+	rf.mu.Lock()
+	defer rf.mu.Unlock()
 
 }
 
@@ -306,6 +374,11 @@ func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 //
 func (rf *Raft) sendRequestVote(server int, args *RequestVoteArgs, reply *RequestVoteReply) bool {
 	ok := rf.peers[server].Call("Raft.RequestVote", args, reply)
+	return ok
+}
+
+func (rf *Raft) sendAppendEntries(server int, args *AppendEntriesArg, reply *AppendEntriesReply) bool {
+	ok := rf.peers[server].Call("Raft.AppendEntries", args, reply)
 	return ok
 }
 
