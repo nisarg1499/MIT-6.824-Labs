@@ -191,6 +191,7 @@ type AppendEntriesReply struct {
 // 	}
 // }
 
+// Function to start the election and declare the result of the election
 func (rf *Raft) electionStarts() {
 
 	timeToSleepInMs := rand.Intn(ElectionTimeoutMax-ElectionTimeoutMin) + ElectionTimeoutMin
@@ -273,6 +274,7 @@ func (rf *Raft) electionStarts() {
 
 }
 
+// Function to change the state and then call the execution which is required on state change
 func (rf *Raft) stateChange(state State) {
 
 	if state == Follower {
@@ -286,7 +288,7 @@ func (rf *Raft) stateChange(state State) {
 		go rf.electionStarts()
 	} else if state == Leader {
 		if rf.state != state {
-			DPrintf("Leader state not equal... Current state : %v and passed state : %v ", rf.state, state)
+			DPrintf("Leader state not equal... Current state : %d and passed state : %d ", rf.state, state)
 			go rf.startHeartBeat()
 		}
 		rf.state = state
@@ -306,6 +308,7 @@ func (rf *Raft) LeaderSendAppend(server int) {
 	}
 }
 
+// Function call to send append entries to required servers from leader
 func (rf *Raft) SendAppendEntries(server int) {
 	rf.mu.Lock()
 	appendArgs := AppendEntriesArg{
@@ -317,6 +320,7 @@ func (rf *Raft) SendAppendEntries(server int) {
 	rf.mu.Unlock()
 	DPrintf("%d sending append entry to server %d", rf.me, server)
 	result := rf.sendAppendEntries(server, &appendArgs, &appendReply)
+	DPrintf("%d received append entry result from server %d", rf.me, server)
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
 	if !result {
@@ -329,6 +333,7 @@ func (rf *Raft) SendAppendEntries(server int) {
 	}
 }
 
+// Function to call the required functions for heartbeat (AppendEntries)
 func (rf *Raft) startHeartBeat() {
 	for x := 0; x < len(rf.peers); x++ {
 		if x != rf.me {
@@ -337,6 +342,7 @@ func (rf *Raft) startHeartBeat() {
 	}
 }
 
+// Function to check the election timeout and call stateChange to convert to Candidate when required
 func (rf *Raft) checkTimer() {
 	for {
 		timeToSleepInMs := rand.Intn(ElectionTimeoutMax-ElectionTimeoutMin) + ElectionTimeoutMin
@@ -374,14 +380,14 @@ func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 
 	DPrintf("%d receives request vote from %d for term %d", rf.me, args.CandidateId, args.Term)
 	if args.Term < rf.currentTerm {
-		DPrintf("%d server Into vote granted false ", rf.me)
+		DPrintf("%d server into vote granted false ", rf.me)
 		reply.Term = rf.currentTerm
 		reply.VoteGranted = false
 		return
 	}
 
 	if args.Term > rf.currentTerm {
-		DPrintf("updates term to %v, converting to follower", args.Term)
+		DPrintf("Term updated to %d and converting to follower", args.Term)
 		rf.lastHeardTime = time.Now()
 		rf.currentTerm = args.Term
 		rf.votedFor = -1
@@ -400,6 +406,7 @@ func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 	}
 }
 
+// AppendEntries RPC handler
 func (rf *Raft) AppendEntries(args *AppendEntriesArg, reply *AppendEntriesReply) {
 	// Your code here (2A, 2B).
 	rf.mu.Lock()
@@ -451,7 +458,7 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArg, reply *AppendEntriesReply)
 // the struct itself.
 //
 func (rf *Raft) sendRequestVote(server int, args *RequestVoteArgs, reply *RequestVoteReply) bool {
-	DPrintf("Anser for server %d", server)
+	// DPrintf("Anwser for server %d", server)
 	ok := rf.peers[server].Call("Raft.RequestVote", args, reply)
 
 	return ok
@@ -535,7 +542,7 @@ func Make(peers []*labrpc.ClientEnd, me int,
 	// fmt.Printf("var1 = %T\n", temp)
 	// rf.electionTimeOutForMe = time.Duration(temp) * time.Millisecond
 	// go rf.startLeaderElection()
-	DPrintf("Initialization done of server : %v", rf.me)
+	DPrintf("Initialization done of server : %d", rf.me)
 	rf.mu.Lock()
 	rf.stateChange(Follower)
 	rf.mu.Unlock()
