@@ -9,14 +9,14 @@ You can find the course description and labs [here](http://nil.csail.mit.edu/6.8
 6.824 is a core 12-unit graduate subject with lectures, readings, programming labs, an optional project, a mid-term exam, and a final exam. It will present abstractions and implementation techniques for engineering distributed systems. Major topics include fault tolerance, replication, and consistency. Much of the class consists of studying and discussing case studies of distributed systems.
 
 ## Work 
-- [ ] **Lab1 (MapReduce)**
+- [x] **Lab1 (MapReduce)**
 	- [x] Implementation of Distributed Map Reduce
 	- [x] Handle crash of workers
-	- [ ] Document of explaination of the approach taken, difficulties faced and topics learnt
+	- [x] [System working documentation](https://github.com/nisarg1499/MIT-6.824-Labs/blob/main/docs_solutions/lab1-Distributed_Map_Reduce/Documentation_map_reduce.md) 
 
 
 - [ ] **Lab2 (Raft Consensus Algorithm)**
-	- [ ] Implementation of Lab2A
+	- [x] Implementation of Lab2A (Leader election)
 	- [ ] Implementation of Lab2B
 	- [ ] Implementation of Lab2C
 	- [ ] Document of explaination of the approach taken, difficulties faced and topics learnt
