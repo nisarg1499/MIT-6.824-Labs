@@ -9,12 +9,15 @@ In mr folder:
 
 ## Overview
 The below image has the complete flow of the application.
-![System overview](docs_solutions/lab1-Distributed_Map_Reduce/system-overview.jpg)
+
+![image](https://github.com/nisarg1499/MIT-6.824-Labs/blob/main/docs_solutions/lab1-Distributed_Map_Reduce/system-overview.jpg)
 
 
 ## Details 
 
 ### rpc.go
+[Code Link](https://github.com/nisarg1499/MIT-6.824-Labs/blob/main/src/mr/rpc.go)
+
 This file includes all RPC definitions. In total 4 definitions were declared and used. 
 
  1. GetTaskArgs : Arguments passed while requesting task from master 
@@ -42,8 +45,12 @@ type  ReportOnMapToMasterArgs  struct {
 }
 ```	
 
+---
+
 
 ### master.go
+[Code Link](https://github.com/nisarg1499/MIT-6.824-Labs/blob/main/src/mr/master.go)
+
 This file includes implementation of all methods required by master. 
 
 The important structures included in master are : 
@@ -70,10 +77,11 @@ type  ReduceTask  struct {
 }
 ```
 
- **1. MakeMaster Function**
+ #### 1. MakeMaster Function
+ 
  This function initializes the master (assign values to Master Struct). In this function, it assigns total number of reduce tasks; iterate over the files and initialize the mapTasks by assigning the index of file as taskId, stage as 0 and fileName. Same goes with reduceTasks.
    
- **2. GetWorkerTask Function**
+ #### 2. GetWorkerTask Function
  - Check if all map/reduce tasks are completed
  - Fetch the map/reduce tasks from mapTasks/reduceTasks from Master and send appropriate parameters in the reply to worker
  - Reply variables on map task : TaskId, FileName, TaskType, AllTasksDone and NumberOfReducers
@@ -82,20 +90,25 @@ type  ReduceTask  struct {
  - Call TenSecondsCheck{Map/Reduce} function as a go-routine to check the status of the task
  - At the end mark AllTasksDone as true 
  
- **3. ReportOnMap/ReportOnReduce Function**
+ #### 3. ReportOnMap/ReportOnReduce Function
  - For the given taskId, store the TempMapFileLocation sent in args to the tempMapFilesLocation of master struct. (This step is only for Map Task)
  - Check the status of the task, and update it in the mapTasks  
  
- **4. TenSecondsCheckMap/ TenSecondsCheckReduce Function**
+ #### 4. TenSecondsCheckMap/ TenSecondsCheckReduce Function
  - Sleep for 10 seconds
  - For Map : Check the length of array of tempMapFilesLocation of particular taskId with the number of reduce tasks. If same, it means the task with that taskId has been successfully completed.
  - For Reduce : Check whether the file exists with `"mr-out" + (taskId)` name. If it exists then task has been successfully executed. 
  
- **5. Done Function**
+ #### 5. Done Function
+ 
  Check if all map tasks and reduce tasks have been completed -> If so, then do `ret = true`.
 
- 
+---
+
+
 ### worker.go
+[Code Link](https://github.com/nisarg1499/MIT-6.824-Labs/blob/main/src/mr/worker.go)
+
 This file includes the implementation of all methods required by worker. 
 
 The structures included in this file is KeyValue struct. It is used for storing key values of map.
@@ -106,10 +119,12 @@ type  KeyValue  struct {
 }
 ```
  
- **1. Worker function**
+#### 1. Worker function
+ 
 Initially, the worker will ask for a task from master, and based on the results and AllTasksDone variable, the loop will be terminated. First, all the map tasks will be assigned, completed and reported back to master. After that all reduce tasks will be assigned, completed and reported to the master. 
 
-**2. Map function**
+#### 2. Map function
+
 Below are the main steps of runMap function : 
 - Open the file, read contents and close it
 -  Execute map function by passing fileName(fetched from task) and the contents of the file
@@ -117,7 +132,8 @@ Below are the main steps of runMap function :
 - Create a tempFile, store the map results, rename it with `mr-x-y`.
 - Append the fileName into intermediateLocations variable which will be used while reporting map to master
  
-**3. Reduce function** 
+#### 3. Reduce function 
+
 Below are the main steps of runReduce function : 
 - Open the file, use Decoder to read the exact json, and append the output in intermediate variable.
 - Sort by key
